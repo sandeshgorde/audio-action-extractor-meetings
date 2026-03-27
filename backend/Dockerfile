@@ -28,7 +28,8 @@ COPY scripts/transcribe.py /app/scripts/
 
 ENV JAVA_OPTS="-Xmx512m -Xms256m"
 ENV GROQ_API_KEY=""
+ENV PORT=10000
 
-EXPOSE 8080
+EXPOSE 10000
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dserver.port=$PORT -jar app.jar"]

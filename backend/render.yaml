@@ -1,0 +1,7 @@
+build:
+  command: "mvn clean package -DskipTests"
+  dockerfile: "Dockerfile"
+env:
+  - GROQ_API_KEY
+  - JAVA_OPTS="-Xmx512m -Xms256m"
+  - PORT=10000

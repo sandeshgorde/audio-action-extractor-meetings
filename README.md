@@ -1,60 +1,47 @@
 # Meeting Analyzer
 
-An AI-powered meeting assistant that extracts action items from audio recordings.
+AI-powered meeting assistant that extracts action items from audio recordings.
 
-## Architecture (100% Free Deployment)
+## Architecture (100% Free)
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   User Browser  │────▶│   Vercel UI     │────▶│   Railway API   │
-│   (Frontend)    │     │   (React)       │     │   (Spring Boot) │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                            │
-                                                            ▼
-                                                   ┌─────────────────┐
-                                                   │   Groq API      │
-                                                   │  (Whisper AI)   │
-                                                   └─────────────────┘
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Browser   │────▶│   Vercel    │────▶│   Render    │
+│  (Frontend) │     │   (React)   │     │  (Backend)  │
+└─────────────┘     └─────────────┘     └─────────────┘
+                                             │
+                                             ▼
+                                    ┌─────────────┐
+                                    │   Groq API  │
+                                    │  (Whisper) │
+                                    └─────────────┘
 ```
 
 **Free Tier:**
 - **Frontend:** Vercel - Unlimited
-- **Backend:** Railway - 500 hours/month
-- **AI:** Groq API - 500 minutes/month
+- **Backend:** Render - 750 hours/month
+- **AI:** Groq - 500 minutes/month
 
 ---
 
 ## Quick Start (Local)
 
-### Prerequisites
+### Get Groq API Key
 
-- Java 17+
-- Node.js 18+
-- Python 3.8+
+1. https://console.groq.com/
+2. Sign up → Create API key
+3. Free: 500 min/month
 
-### 1. Get Groq API Key (Free)
-
-1. Go to https://console.groq.com/
-2. Sign up with GitHub
-3. Create API key (free - 500 min/month)
-4. Copy the key
-
-### 2. Run Backend
+### Run Backend
 
 ```bash
 cd backend
-
-# Set Groq API key
-export GROQ_API_KEY="your_groq_key"
-
-# Install Groq SDK
+export GROQ_API_KEY="your_key"
 pip install groq
-
-# Run
 mvn spring-boot:run
 ```
 
-### 3. Run Frontend
+### Run Frontend
 
 ```bash
 cd frontend
@@ -64,66 +51,47 @@ npm start
 
 ---
 
-## Deployment (100% Free)
+## Deploy (100% Free)
 
-### Step 1: Deploy Backend on Railway
+### 1. Backend → Render.com
 
-1. Go to https://railway.app/
-2. Sign up with GitHub
-3. Create "New Project" → "Deploy from GitHub repo"
-4. Select your repository
-5. Add environment variable:
-   - `GROQ_API_KEY` = your_groq_api_key
+1. Go to https://render.com/
+2. Connect GitHub → Select repo
+3. Create "Web Service"
+4. Settings:
+   - Build Command: `mvn clean package -DskipTests`
+   - Start Command: `java -Xmx512m -Xms256m -Dserver.port=$PORT -jar target/audio-action-extractor-1.0.0.jar`
+5. Add Env Vars:
+   - `GROQ_API_KEY` = your_groq_key
 6. Deploy!
 
-### Step 2: Deploy Frontend on Vercel
+### 2. Frontend → Vercel.com
 
 1. Go to https://vercel.com/
-2. Sign up with GitHub  
-3. "Add New" → Select your repo
-4. Select "frontend" folder
-5. Add variable:
-   - `REACT_APP_API_URL` = your_railway_backend_url
-6. Deploy!
-
----
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| GROQ_API_KEY | Get from https://console.groq.com/ |
-| PORT | Server port (default: 8080) |
+2. Connect GitHub → Select repo
+3. Select "frontend" folder
+4. Add Env Var:
+   - `REACT_APP_API_URL` = your_render_url
+5. Deploy!
 
 ---
 
 ## API
 
 ```bash
-curl -X POST https://your-backend.railway.app/api/upload-audio \
+curl -X POST https://your-render-app.onrender.com/api/upload-audio \
   -F "file=@meeting.mp3"
-```
-
-Response:
-```json
-{
-  "success": true,
-  "transcript": "Meeting discussion...",
-  "action_items": [{"task": "...", "assigned_to": "John", "deadline": "Friday", "priority": "high"}],
-  "summary": {"text": "...", "action_items_count": 3}
-}
 ```
 
 ---
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | React 18, Tailwind CSS |
-| Backend | Spring Boot 3.2, Java 17 |
-| AI | Groq Whisper API |
-| Hosting | Vercel + Railway |
+| Component | Service |
+|-----------|---------|
+| Frontend | React, Vercel |
+| Backend | Spring Boot, Render |
+| AI | Groq Whisper |
 
 ---
 
