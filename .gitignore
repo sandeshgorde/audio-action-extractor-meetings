@@ -1,0 +1,26 @@
+# Dependencies
+backend/venv/
+backend/target/
+frontend/node_modules/
+frontend/build/
+backend/uploads/
+*.class
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env
+
+# Temp files
+*.tmp
+*.swp
