@@ -1,31 +1,63 @@
 #!/usr/bin/env python3
+"""
+Transcription using Groq API (Free Whisper)
+Sign up at: https://console.groq.com/
+Free tier: 500 minutes/month
+"""
+
 import sys
-import whisper
 import json
-import torch
+import os
 import re
+
+def transcribe_with_groq(audio_path):
+    api_key = os.environ.get("GROQ_API_KEY")
+    
+    if not api_key:
+        return json.dumps({
+            "error": "GROQ_API_KEY not set. Get free key at https://console.groq.com/"
+        })
+    
+    try:
+        from groq import Groq
+        
+        client = Groq(api_key=api_key)
+        
+        with open(audio_path, "rb") as file:
+            transcription = client.audio.transcriptions.create(
+                file=(audio_path, file.read()),
+                model="whisper-large-v3",
+                response_format="json",
+                language="en"
+            )
+        
+        text = transcription.text
+        
+        action_items = extract_action_items(text)
+        summary = generate_summary(text, action_items)
+        
+        return json.dumps({
+            "text": text,
+            "language": "en",
+            "action_items": action_items,
+            "summary": summary
+        })
+        
+    except ImportError:
+        return json.dumps({"error": "Install groq: pip install groq"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
 
 def extract_action_items(text):
     action_items = []
     
-    patterns = [
-        r'(?:need to|should|will|must|has to|have to)\s+([^.!?]+)',
-        r'(?:assign|assigned)\s+(?:to\s+)?(\w+)',
-        r'(?:by|before|due|deadline)\s+([^.,!?]+)',
-        r'(?:high|medium|low)\s+priority',
-        r'task:\s*([^.]+)',
-        r'action:\s*([^.]+)',
-    ]
-    
-    action_keywords = ['complete', 'finish', 'send', 'email', 'call', 'schedule', 'prepare', 'review', 'update', 'create', 'finish', 'submit', 'check', 'contact', 'organize', 'set up', 'book', 'arrange']
+    action_keywords = ['need to', 'should', 'will', 'must', 'task', 'action', 'complete', 'finish', 'send', 'email', 'call', 'schedule', 'prepare', 'review', 'update', 'create', 'submit', 'check', 'contact']
     
     sentences = re.split(r'[.!?]\s+', text.lower())
     
-    for i, sentence in enumerate(sentences):
+    for sentence in sentences:
         sentence = sentence.strip()
         if any(keyword in sentence for keyword in action_keywords):
-            task = sentence
-            
             assigned = None
             assign_match = re.search(r'(?:assign|assigned|responsible)[:\s]+(\w+)', sentence)
             if assign_match:
@@ -39,11 +71,11 @@ def extract_action_items(text):
             priority = "medium"
             if re.search(r'\bhigh priority\b|\burgent\b|\basap\b', sentence):
                 priority = "high"
-            elif re.search(r'\blow priority\b|\bwhen possible\b', sentence):
+            elif re.search(r'\blow priority\b', sentence):
                 priority = "low"
             
             action_items.append({
-                "task": task.title() if task else "",
+                "task": sentence.title(),
                 "assigned_to": assigned if assigned else "Unassigned",
                 "deadline": deadline if deadline else "Not specified",
                 "priority": priority
@@ -52,38 +84,14 @@ def extract_action_items(text):
     return action_items[:5]
 
 def generate_summary(text, action_items):
-    sentences = re.split(r'[.!?]\s+', text)
-    
-    key_points = []
-    for sentence in sentences[:5]:
-        sentence = sentence.strip()
-        if len(sentence) > 20:
-            key_points.append(sentence)
-    
-    summary = " ".join(key_points[:3]) if key_points else "Meeting discussion completed."
+    sentences = text.split('.')[:3]
+    summary = '. '.join(sentences).strip()
     
     return {
-        "summary": summary.strip(),
+        "summary": summary if summary else "Meeting discussion completed.",
         "action_items_count": len(action_items),
-        "duration_estimate": f"{len(sentences) * 30} seconds"
+        "duration_estimate": f"{len(text.split()) * 0.5} seconds"
     }
-
-def transcribe_audio(audio_path):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = whisper.load_model("base", device=device)
-    
-    result = model.transcribe(audio_path, verbose=False)
-    
-    text = result["text"]
-    action_items = extract_action_items(text)
-    summary_info = generate_summary(text, action_items)
-    
-    return json.dumps({
-        "text": text,
-        "language": result.get("language", "unknown"),
-        "action_items": action_items,
-        "summary": summary_info
-    })
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -91,10 +99,5 @@ if __name__ == "__main__":
         sys.exit(1)
     
     audio_path = sys.argv[1]
-    
-    try:
-        result = transcribe_audio(audio_path)
-        print(result)
-    except Exception as e:
-        print(json.dumps({"error": str(e)}))
-        sys.exit(1)
+    result = transcribe_with_groq(audio_path)
+    print(result)
