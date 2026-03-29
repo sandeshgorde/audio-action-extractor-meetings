@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -106,7 +107,8 @@ public class AudioUploadService {
     }
 
     private String transcribeAudio(String audioPath) {
-        String pythonCommand = System.getProperty("python.command", "python3");
+        String venvPython = Paths.get(System.getProperty("user.dir")).resolve("venv/bin/python").normalize().toString();
+        String pythonCommand = System.getProperty("python.command", venvPython);
         Path scriptFullPath = Paths.get(System.getProperty("user.dir")).resolve(pythonScriptPath).normalize();
         String scriptPath = scriptFullPath.toString();
         String absoluteAudioPath = Paths.get(audioPath).normalize().toString();
@@ -116,6 +118,11 @@ public class AudioUploadService {
         try {
             ProcessBuilder pb = new ProcessBuilder(pythonCommand, scriptPath, absoluteAudioPath);
             pb.redirectErrorStream(true);
+            Map<String, String> env = pb.environment();
+            String apiKey = System.getenv("GROQ_API_KEY");
+            if (apiKey != null && !apiKey.isEmpty()) {
+                env.put("GROQ_API_KEY", apiKey);
+            }
             Process process = pb.start();
 
             String output = new BufferedReader(new InputStreamReader(process.getInputStream()))
