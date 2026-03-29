@@ -51,6 +51,9 @@ source venv/bin/activate
 # Install dependencies
 pip install groq
 
+# Build the project
+mvn clean package -DskipTests
+
 # Set API key
 export GROQ_API_KEY="your_groq_key"
 
@@ -66,6 +69,8 @@ python -m venv venv
 venv\Scripts\activate
 
 pip install groq
+
+mvn clean package -DskipTests
 
 set GROQ_API_KEY=your_groq_key
 
@@ -94,14 +99,6 @@ npm start
 
 - **Frontend:** http://localhost:3000
 - **Backend:** http://localhost:8080
-
----
-
-## API
-
-```bash
-curl -X POST http://localhost:8080/api/upload-audio -F "file=@meeting.mp3"
-```
 
 ---
 
