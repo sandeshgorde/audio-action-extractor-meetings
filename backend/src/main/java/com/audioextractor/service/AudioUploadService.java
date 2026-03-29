@@ -2,6 +2,7 @@ package com.audioextractor.service;
 
 import com.audioextractor.exception.AudioProcessingException;
 import com.audioextractor.exception.AudioProcessingException.ErrorCode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,9 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,6 +24,8 @@ public class AudioUploadService {
 
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
     private static final List<String> ALLOWED_EXTENSIONS = List.of(".mp3", ".wav", ".m4a", ".flac", ".ogg", ".wma", ".aac");
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
@@ -59,8 +60,7 @@ public class AudioUploadService {
                 throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, new Exception(errorMsg));
             }
 
-            Map<String, Object> parsed = parseJsonResponse(jsonResponse);
-            return buildResult(storedFilename, file.getOriginalFilename(), file.getSize(), parsed);
+            return buildResult(storedFilename, file.getOriginalFilename(), file.getSize(), jsonResponse);
 
         } catch (AudioProcessingException e) {
             throw e;
@@ -102,11 +102,6 @@ public class AudioUploadService {
         String scriptPath = scriptFullPath.toString();
         String absoluteAudioPath = Paths.get(audioPath).normalize().toString();
 
-        System.out.println("DEBUG - user.dir: " + System.getProperty("user.dir"));
-        System.out.println("DEBUG - scriptPath: " + scriptPath);
-        System.out.println("DEBUG - audioPath: " + absoluteAudioPath);
-        System.out.println("DEBUG - pythonCommand: " + pythonCommand);
-
         try {
             ProcessBuilder pb = new ProcessBuilder(pythonCommand, scriptPath, absoluteAudioPath);
             pb.redirectErrorStream(true);
@@ -117,8 +112,6 @@ public class AudioUploadService {
                     .collect(Collectors.joining());
 
             int exitCode = process.waitFor();
-            System.out.println("DEBUG - Exit code: " + exitCode);
-            System.out.println("DEBUG - Output: " + output);
             
             if (exitCode != 0) {
                 if (output.contains("python") || output.contains("not found")) {
@@ -148,132 +141,46 @@ public class AudioUploadService {
     }
 
     private String extractErrorMessage(String json) {
-        int errorIndex = json.indexOf("\"error\"");
-        if (errorIndex == -1) return "Unknown error";
-        int start = json.indexOf("\"", errorIndex + 7) + 1;
-        int end = json.indexOf("\"", start);
-        return end > start ? json.substring(start, end) : "Unknown error";
-    }
-
-    private UploadResult buildResult(String filename, String originalName, long size, Map<String, Object> parsed) {
-        String transcript = (String) parsed.getOrDefault("text", "");
-        String language = (String) parsed.getOrDefault("language", "unknown");
-        
-        @SuppressWarnings("unchecked")
-        List<Map<String, String>> actionItemsRaw = (List<Map<String, String>>) parsed.getOrDefault("action_items", new ArrayList<>());
-        List<ActionItem> actionItems = actionItemsRaw.stream()
-                .map(ai -> new ActionItem(
-                        ai.getOrDefault("task", ""),
-                        ai.getOrDefault("assigned_to", "Unassigned"),
-                        ai.getOrDefault("deadline", "Not specified"),
-                        ai.getOrDefault("priority", "medium")
-                ))
-                .collect(Collectors.toList());
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> summaryRaw = (Map<String, Object>) parsed.getOrDefault("summary", new HashMap<>());
-        Summary summary = new Summary(
-                (String) summaryRaw.getOrDefault("summary", ""),
-                (int) summaryRaw.getOrDefault("action_items_count", 0),
-                (String) summaryRaw.getOrDefault("duration_estimate", "unknown")
-        );
-
-        return new UploadResult(filename, originalName, size, transcript, language, actionItems, summary);
-    }
-
-    private Map<String, Object> parseJsonResponse(String json) {
-        Map<String, Object> result = new HashMap<>();
-        
-        result.put("text", extractJsonValue(json, "text"));
-        result.put("language", extractJsonValue(json, "language"));
-        result.put("action_items", extractJsonArray(json, "action_items"));
-        result.put("summary", extractJsonObject(json, "summary"));
-        
-        return result;
-    }
-
-    private String extractJsonValue(String json, String key) {
-        String pattern = "\"" + key + "\"";
-        int keyIndex = json.indexOf(pattern);
-        if (keyIndex == -1) return "";
-        
-        int colonIndex = json.indexOf(":", keyIndex);
-        if (colonIndex == -1) return "";
-        
-        int startIndex = colonIndex + 1;
-        while (startIndex < json.length() && Character.isWhitespace(json.charAt(startIndex))) {
-            startIndex++;
+        try {
+            return objectMapper.readTree(json).get("error").asText();
+        } catch (Exception e) {
+            return "Unknown error";
         }
-        
-        if (startIndex >= json.length()) return "";
-        
-        char startChar = json.charAt(startIndex);
-        if (startChar == '"') {
-            int endQuote = json.indexOf('"', startIndex + 1);
-            return endQuote > startIndex ? json.substring(startIndex + 1, endQuote) : "";
-        } else if (startChar == '{' || startChar == '[') {
-            return "";
-        } else {
-            int endIndex = startIndex;
-            while (endIndex < json.length() && json.charAt(endIndex) != ',' && json.charAt(endIndex) != '}') {
-                endIndex++;
+    }
+
+    private UploadResult buildResult(String filename, String originalName, long size, String jsonResponse) {
+        try {
+            var root = objectMapper.readTree(jsonResponse);
+            
+            String transcript = root.has("text") ? root.get("text").asText() : "";
+            String language = root.has("language") ? root.get("language").asText() : "unknown";
+            
+            List<ActionItem> actionItems = new ArrayList<>();
+            if (root.has("action_items") && root.get("action_items").isArray()) {
+                var actionItemsArray = root.get("action_items");
+                for (var ai : actionItemsArray) {
+                    actionItems.add(new ActionItem(
+                            ai.has("task") ? ai.get("task").asText() : "",
+                            ai.has("assigned_to") ? ai.get("assigned_to").asText() : "Unassigned",
+                            ai.has("deadline") ? ai.get("deadline").asText() : "Not specified",
+                            ai.has("priority") ? ai.get("priority").asText() : "medium"
+                    ));
+                }
             }
-            return json.substring(startIndex, endIndex).trim();
-        }
-    }
-
-    private List<Map<String, String>> extractJsonArray(String json, String key) {
-        List<Map<String, String>> items = new ArrayList<>();
-        String arrayPattern = "\"" + key + "\"";
-        int arrayIndex = json.indexOf(arrayPattern);
-        if (arrayIndex == -1) return items;
-        
-        int bracketStart = json.indexOf("[", arrayIndex);
-        int bracketEnd = json.indexOf("]", bracketStart);
-        if (bracketStart == -1 || bracketEnd == -1) return items;
-        
-        String arrayContent = json.substring(bracketStart + 1, bracketEnd);
-        
-        int objectStart = 0;
-        while (objectStart < arrayContent.length()) {
-            int objStart = arrayContent.indexOf("{", objectStart);
-            if (objStart == -1) break;
-            int objEnd = arrayContent.indexOf("}", objStart);
-            if (objEnd == -1) break;
             
-            String objContent = arrayContent.substring(objStart, objEnd + 1);
-            Map<String, String> item = new HashMap<>();
-            item.put("task", extractJsonValue(objContent, "task"));
-            item.put("assigned_to", extractJsonValue(objContent, "assigned_to"));
-            item.put("deadline", extractJsonValue(objContent, "deadline"));
-            item.put("priority", extractJsonValue(objContent, "priority"));
-            items.add(item);
-            
-            objectStart = objEnd + 1;
-        }
-        
-        return items;
-    }
+            Summary summary = new Summary(
+                    root.has("summary") && root.get("summary").has("summary") 
+                        ? root.get("summary").get("summary").asText() : "",
+                    root.has("summary") && root.get("summary").has("action_items_count") 
+                        ? root.get("summary").get("action_items_count").asInt() : 0,
+                    root.has("summary") && root.get("summary").has("duration_estimate") 
+                        ? root.get("summary").get("duration_estimate").asText() : "unknown"
+            );
 
-    private Map<String, Object> extractJsonObject(String json, String key) {
-        Map<String, Object> obj = new HashMap<>();
-        String objectPattern = "\"" + key + "\"";
-        int objectIndex = json.indexOf(objectPattern);
-        if (objectIndex == -1) return obj;
-        
-        int braceStart = json.indexOf("{", objectIndex);
-        int braceEnd = json.indexOf("}", braceStart);
-        if (braceStart == -1 || braceEnd == -1) return obj;
-        
-        String objectContent = json.substring(braceStart + 1, braceEnd);
-        
-        obj.put("summary", extractJsonValue(objectContent, "summary"));
-        
-        String countStr = extractJsonValue(objectContent, "action_items_count");
-        obj.put("action_items_count", countStr.isEmpty() ? 0 : Integer.parseInt(countStr));
-        
-        obj.put("duration_estimate", extractJsonValue(objectContent, "duration_estimate"));
-        
-        return obj;
+            return new UploadResult(filename, originalName, size, transcript, language, actionItems, summary);
+            
+        } catch (IOException e) {
+            throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, e);
+        }
     }
 }
