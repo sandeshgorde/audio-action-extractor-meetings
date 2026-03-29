@@ -1,100 +1,66 @@
 # Meeting Analyzer
 
-AI-powered meeting assistant that extracts action items from audio recordings.
+Extract actionable insights from your meeting recordings with AI-powered transcription.
 
-## Architecture (100% Free)
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Browser   │────▶│   Vercel    │────▶│   Render    │
-│  (Frontend) │     │   (React)   │     │  (Backend)  │
-└─────────────┘     └─────────────┘     └─────────────┘
-                                             │
-                                             ▼
-                                    ┌─────────────┐
-                                    │   Groq API  │
-                                    │  (Whisper) │
-                                    └─────────────┘
-```
-
-**Free Tier:**
-- **Frontend:** Vercel - Unlimited
-- **Backend:** Render - 750 hours/month
-- **AI:** Groq - 500 minutes/month
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=flat&logo=spring-boot)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)
+![Java](https://img.shields.io/badge/Java-17-ED8B00?style=flat&logo=java)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 
 ---
 
-## Quick Start (Local)
+## What It Does
 
-### Get Groq API Key
+Upload any meeting recording and instantly get:
 
-1. https://console.groq.com/
-2. Sign up → Create API key
-3. Free: 500 min/month
+- **Transcript** — Accurate speech-to-text conversion
+- **Action Items** — Tasks identified with assignee, deadline & priority  
+- **Summary** — Concise meeting overview
 
-### Run Backend
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | React · Tailwind CSS |
+| Backend | Spring Boot · Java 17 |
+| AI | Groq Whisper API |
+
+---
+
+## Quick Start
 
 ```bash
+# Clone
+git clone https://github.com/sandeshgorde/audio-action-extractor-meetings.git
+cd audio-action-extractor-meetings
+
+# Backend
 cd backend
 export GROQ_API_KEY="your_key"
 pip install groq
 mvn spring-boot:run
-```
 
-### Run Frontend
-
-```bash
+# Frontend (new terminal)
 cd frontend
 npm install
 npm start
 ```
 
----
-
-## Deploy (100% Free)
-
-### 1. Backend → Render.com
-
-1. Go to https://render.com/
-2. Connect GitHub → Select repo
-3. Create "Web Service"
-4. Settings:
-   - Build Command: `mvn clean package -DskipTests`
-   - Start Command: `java -Xmx512m -Xms256m -Dserver.port=$PORT -jar target/audio-action-extractor-1.0.0.jar`
-5. Add Env Vars:
-   - `GROQ_API_KEY` = your_groq_key
-6. Deploy!
-
-### 2. Frontend → Vercel.com
-
-1. Go to https://vercel.com/
-2. Connect GitHub → Select repo
-3. Select "frontend" folder
-4. Add Env Var:
-   - `REACT_APP_API_URL` = your_render_url
-5. Deploy!
+Open **http://localhost:3000**
 
 ---
 
 ## API
 
 ```bash
-curl -X POST https://your-render-app.onrender.com/api/upload-audio \
+curl -X POST http://localhost:8080/api/upload-audio \
   -F "file=@meeting.mp3"
 ```
 
 ---
 
-## Tech Stack
-
-| Component | Service |
-|-----------|---------|
-| Frontend | React, Vercel |
-| Backend | Spring Boot, Render |
-| AI | Groq Whisper |
-
----
-
 ## License
 
-MIT
+[MIT](LICENSE)
