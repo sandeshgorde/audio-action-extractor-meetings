@@ -4,8 +4,10 @@ backend/target/
 frontend/node_modules/
 frontend/build/
 backend/uploads/
+
+# Build outputs
 *.class
-*.log
+*.jar
 
 # IDE
 .idea/
@@ -20,7 +22,11 @@ Thumbs.db
 # Environment
 .env
 *.env
+backend/.env
+frontend/.env
+frontend/.env.local
 
 # Temp files
 *.tmp
 *.swp
+*.log
