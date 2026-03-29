@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Transcription using Groq API (Free Whisper)
+Transcription using Groq API
 Sign up at: https://console.groq.com/
 Free tier: 500 minutes/month
 """

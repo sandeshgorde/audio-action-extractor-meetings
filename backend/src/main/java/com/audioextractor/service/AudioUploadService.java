@@ -136,7 +136,7 @@ public class AudioUploadService {
             if (output.contains("\"error\"")) {
                 log.error("Transcription returned error: {}", output);
                 throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, 
-                        new Exception("Whisper error: " + output));
+                        new Exception("Groq transcription error: " + output));
             }
 
             log.debug("Transcription completed successfully");

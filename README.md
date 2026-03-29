@@ -6,7 +6,7 @@ Extract actionable insights from your meeting recordings with AI-powered transcr
 
 ## How It Works
 
-Upload audio → Groq Whisper transcribes it → Action items extracted → Results displayed
+Upload audio → Groq transcribes it → Action items extracted → Results displayed
 
 ---
 
@@ -16,7 +16,7 @@ Upload audio → Groq Whisper transcribes it → Action items extracted → Resu
 |-----------|------------|
 | Frontend | React · Tailwind CSS |
 | Backend | Spring Boot · Java 17 |
-| AI | Groq Whisper API |
+| AI | Groq API |
 
 ---
 
