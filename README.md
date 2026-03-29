@@ -2,65 +2,109 @@
 
 Extract actionable insights from your meeting recordings with AI-powered transcription.
 
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=flat&logo=spring-boot)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)
-![Java](https://img.shields.io/badge/Java-17-ED8B00?style=flat&logo=java)
-![License](https://img.shields.io/badge/License-MIT-green?style=flat)
-
----
-
-## What It Does
-
-Upload any meeting recording and instantly get:
-
-- **Transcript** — Accurate speech-to-text conversion
-- **Action Items** — Tasks identified with assignee, deadline & priority  
-- **Summary** — Concise meeting overview
-
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
+| Component | Technology |
+|-----------|------------|
 | Frontend | React · Tailwind CSS |
 | Backend | Spring Boot · Java 17 |
 | AI | Groq Whisper API |
 
 ---
 
-## Quick Start
+## Prerequisites
+
+- Java 17+
+- Node.js 18+
+- Maven 3.8+
+- Python 3.8+
+
+---
+
+## Setup
+
+### 1. Clone the Repository
 
 ```bash
-# Clone
 git clone https://github.com/sandeshgorde/audio-action-extractor-meetings.git
 cd audio-action-extractor-meetings
+```
 
-# Backend
+### 2. Get Groq API Key
+
+1. Visit https://console.groq.com/
+2. Sign up and create an API key
+3. Copy the key
+
+### 3. Backend Setup
+
+**Linux / macOS:**
+```bash
 cd backend
-export GROQ_API_KEY="your_key"
-pip install groq
-mvn spring-boot:run
 
-# Frontend (new terminal)
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install groq
+
+# Set API key
+export GROQ_API_KEY="your_groq_key"
+
+# Run backend
+mvn spring-boot:run
+```
+
+**Windows (CMD):**
+```cmd
+cd backend
+
+python -m venv venv
+venv\Scripts\activate
+
+pip install groq
+
+set GROQ_API_KEY=your_groq_key
+
+mvn spring-boot:run
+```
+
+### 4. Frontend Setup
+
+**Linux / macOS:**
+```bash
 cd frontend
 npm install
 npm start
 ```
 
-Open **http://localhost:3000**
+**Windows:**
+```cmd
+cd frontend
+npm install
+npm start
+```
+
+---
+
+## Access
+
+- **Frontend:** http://localhost:3000
+- **Backend:** http://localhost:8080
 
 ---
 
 ## API
 
 ```bash
-curl -X POST http://localhost:8080/api/upload-audio \
-  -F "file=@meeting.mp3"
+curl -X POST http://localhost:8080/api/upload-audio -F "file=@meeting.mp3"
 ```
 
 ---
 
 ## License
 
-[MIT](LICENSE)
+MIT
