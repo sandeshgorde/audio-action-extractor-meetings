@@ -18,7 +18,7 @@ COPY --from=builder /app/target/*.jar app.jar
 RUN apk add --no-cache python3 py3-pip
 
 # Install Groq SDK
-RUN pip3 install --no-cache-dir groq>=0.4.0
+RUN pip3 install --no-cache-dir "groq>=0.4.0"
 
 # Create uploads directory
 RUN mkdir -p /app/uploads
@@ -32,4 +32,4 @@ ENV PORT=10000
 
 EXPOSE 10000
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dserver.port=$PORT -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dserver.port=$PORT -Dpython.command=python3 -jar app.jar"]
