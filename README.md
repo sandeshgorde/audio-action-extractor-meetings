@@ -1,4 +1,4 @@
-# Meeting Analyzer
+# Audio Action Extractor Meetings
 
 Extract actionable insights from your meeting recordings with AI-powered transcription.
 
