@@ -51,13 +51,14 @@ def transcribe_with_groq(audio_path):
 def extract_action_items(text):
     action_items = []
     
-    action_keywords = ['need to', 'should', 'will', 'must', 'task', 'action', 'complete', 'finish', 'send', 'email', 'call', 'schedule', 'prepare', 'review', 'update', 'create', 'submit', 'check', 'contact']
+    action_keywords = ['need to', 'should', 'will', 'must', 'task', 'action', 'complete', 'finish', 'send', 'email', 'call', 'schedule', 'prepare', 'review', 'update', 'create', 'submit', 'check', 'contact', 'follow up', 'make sure', 'ensure', 'coordinate', 'present', 'deliver', 'fix', 'resolve', 'implement', 'discuss']
     
     sentences = re.split(r'[.!?]\s+', text.lower())
     
     for sentence in sentences:
         sentence = sentence.strip()
         if any(keyword in sentence for keyword in action_keywords):
+            original_sentence = sentence
             assigned = None
             assign_match = re.search(r'(?:assign|assigned|responsible)[:\s]+(\w+)', sentence)
             if assign_match:
@@ -75,13 +76,13 @@ def extract_action_items(text):
                 priority = "low"
             
             action_items.append({
-                "task": sentence.title(),
+                "task": original_sentence,
                 "assigned_to": assigned if assigned else "Unassigned",
                 "deadline": deadline if deadline else "Not specified",
                 "priority": priority
             })
     
-    return action_items[:5]
+    return action_items[:10]
 
 def generate_summary(text, action_items):
     sentences = text.split('.')[:3]
