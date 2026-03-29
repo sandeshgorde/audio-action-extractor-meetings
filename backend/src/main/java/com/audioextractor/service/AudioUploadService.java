@@ -3,6 +3,8 @@ package com.audioextractor.service;
 import com.audioextractor.exception.AudioProcessingException;
 import com.audioextractor.exception.AudioProcessingException.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +24,8 @@ import java.util.stream.Collectors;
 @Service
 public class AudioUploadService {
 
+    private static final Logger log = LoggerFactory.getLogger(AudioUploadService.class);
+
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
     private static final List<String> ALLOWED_EXTENSIONS = List.of(".mp3", ".wav", ".m4a", ".flac", ".ogg", ".wma", ".aac");
 
@@ -39,6 +43,7 @@ public class AudioUploadService {
                                String language, List<ActionItem> actionItems, Summary summary) {}
 
     public UploadResult uploadAndTranscribe(MultipartFile file) {
+        log.debug("Starting upload for file: {}", file.getOriginalFilename());
         validateFile(file);
 
         try {
@@ -52,11 +57,14 @@ public class AudioUploadService {
             Path targetPath = uploadPath.resolve(storedFilename);
 
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            log.debug("File saved to: {}", targetPath);
 
+            log.debug("Starting transcription for: {}", storedFilename);
             String jsonResponse = transcribeAudio(targetPath.toString());
             
             if (jsonResponse.contains("\"error\"")) {
                 String errorMsg = extractErrorMessage(jsonResponse);
+                log.error("Transcription error: {}", errorMsg);
                 throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, new Exception(errorMsg));
             }
 
@@ -65,6 +73,7 @@ public class AudioUploadService {
         } catch (AudioProcessingException e) {
             throw e;
         } catch (IOException e) {
+            log.error("File upload failed: {}", e.getMessage());
             throw new AudioProcessingException(ErrorCode.UPLOAD_FAILED, e);
         }
     }
@@ -102,6 +111,8 @@ public class AudioUploadService {
         String scriptPath = scriptFullPath.toString();
         String absoluteAudioPath = Paths.get(audioPath).normalize().toString();
 
+        log.debug("Running transcription - Python: {}, Script: {}, Audio: {}", pythonCommand, scriptPath, absoluteAudioPath);
+
         try {
             ProcessBuilder pb = new ProcessBuilder(pythonCommand, scriptPath, absoluteAudioPath);
             pb.redirectErrorStream(true);
@@ -114,6 +125,7 @@ public class AudioUploadService {
             int exitCode = process.waitFor();
             
             if (exitCode != 0) {
+                log.error("Transcription failed with exit code: {}", exitCode);
                 if (output.contains("python") || output.contains("not found")) {
                     throw new AudioProcessingException(ErrorCode.PYTHON_NOT_FOUND);
                 }
@@ -122,20 +134,25 @@ public class AudioUploadService {
             }
 
             if (output.contains("\"error\"")) {
+                log.error("Transcription returned error: {}", output);
                 throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, 
                         new Exception("Whisper error: " + output));
             }
 
+            log.debug("Transcription completed successfully");
             return output;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            log.error("Transcription interrupted: {}", e.getMessage());
             throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_TIMEOUT, e);
         } catch (AudioProcessingException e) {
             throw e;
         } catch (IOException e) {
             if (e.getMessage() != null && e.getMessage().contains("cannot run program")) {
+                log.error("Python not found: {}", e.getMessage());
                 throw new AudioProcessingException(ErrorCode.PYTHON_NOT_FOUND, e);
             }
+            log.error("Transcription IO error: {}", e.getMessage());
             throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, e);
         }
     }
