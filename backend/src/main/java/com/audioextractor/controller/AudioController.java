@@ -30,7 +30,8 @@ public class AudioController {
                         "task", ai.task(),
                         "assigned_to", ai.assignedTo(),
                         "deadline", ai.deadline(),
-                        "priority", ai.priority()
+                        "priority", ai.priority(),
+                        "summary", ai.summary() != null ? ai.summary() : ""
                 ))
                 .toList();
 

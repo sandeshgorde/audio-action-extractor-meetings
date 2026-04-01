@@ -83,12 +83,14 @@ def validate_action_item(item, index):
     
     assigned = item.get("assigned_to") or item.get("assignedTo") or item.get("Assignee") or "Unassigned"
     deadline = item.get("deadline") or item.get("Deadline") or item.get("due") or "Not specified"
+    summary = str(item.get("summary") or item.get("Summary") or task).strip()[:200]
     
     return {
         "task": task,
         "assigned_to": str(assigned).strip() or "Unassigned",
         "deadline": str(deadline).strip() or "Not specified",
-        "priority": normalize_priority(item.get("priority", item.get("Priority", "medium")))
+        "priority": normalize_priority(item.get("priority", item.get("Priority", "medium"))),
+        "summary": summary
     }
 
 def validate_llm_response(raw_response, text, is_action_items=True):
@@ -147,6 +149,7 @@ For each action item, identify:
 - assigned_to: The person responsible (extract from context, or "Unassigned" if not mentioned)
 - deadline: When the task should be completed (extract from context, or "Not specified" if not mentioned)
 - priority: "high", "medium", or "low" (based on urgency)
+- summary: Brief context about this task (1 sentence, why this task matters)
 
 Return a JSON array of action items. Only include items that are actual tasks/assignments, not general discussions.
 
@@ -202,7 +205,8 @@ def create_fallback_action_items(text):
                 "task": sentence[:100],
                 "assigned_to": "Unassigned",
                 "deadline": "Not specified",
-                "priority": "medium"
+                "priority": "medium",
+                "summary": sentence[:200]
             })
     return fallback_items
 
