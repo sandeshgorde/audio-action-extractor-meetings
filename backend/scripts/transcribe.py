@@ -10,6 +10,16 @@ import json
 import os
 import re
 import time
+import logging
+from datetime import datetime
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)-8s | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[logging.StreamHandler(sys.stderr)]
+)
+logger = logging.getLogger(__name__)
 
 VALID_PRIORITIES = {"high", "medium", "low"}
 MAX_RETRIES = 2
@@ -18,9 +28,6 @@ ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".flac", ".ogg"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
 MAX_DURATION_SECONDS = 120
 BYTES_PER_SECOND_ESTIMATE = 256 * 1024
-
-def log(level, message):
-    print(f"[{level}] {message}", file=sys.stderr)
 
 def validate_audio_file(file_path):
     if not os.path.exists(file_path):
@@ -105,7 +112,7 @@ def call_llm_with_retry(client, messages, model, max_tokens, retries=MAX_RETRIES
         try:
             if attempt > 0:
                 wait_time = 2 ** attempt
-                log("INFO", f"Retry attempt {attempt}/{retries} after {wait_time}s delay")
+                logger.info(f"Retry attempt {attempt}/{retries} after {wait_time}s delay")
                 time.sleep(wait_time)
             
             response = client.chat.completions.create(
@@ -121,13 +128,13 @@ def call_llm_with_retry(client, messages, model, max_tokens, retries=MAX_RETRIES
             error_msg = str(e)
             
             if "rate_limit" in error_msg.lower() or "429" in error_msg:
-                log("WARN", f"Rate limited, attempt {attempt + 1}/{retries + 1}")
+                logger.warning(f"Rate limited, attempt {attempt + 1}/{retries + 1}")
                 continue
             elif attempt < retries:
-                log("WARN", f"LLM call failed: {error_msg}, retrying...")
+                logger.warning(f"LLM call failed: {error_msg}, retrying...")
                 continue
             else:
-                log("ERROR", f"LLM call failed after {retries + 1} attempts: {error_msg}")
+                logger.error(f"LLM call failed after {retries + 1} attempts: {error_msg}")
                 return None
     
     return None
@@ -159,9 +166,10 @@ Transcript:""" + text
     response = call_llm_with_retry(client, messages, "llama-3.3-70b-versatile", 1024)
     
     if not response:
-        log("WARN", "Using fallback action items due to LLM failure")
+        logger.warning("Using fallback action items due to LLM failure")
         return create_fallback_action_items(text)
     
+    response_text = ""
     try:
         response_text = response.choices[0].message.content.strip()
         response_text = re.sub(r'^```json\s*', '', response_text)
@@ -172,16 +180,16 @@ Transcript:""" + text
         validated = validate_llm_response(parsed, text, is_action_items=True)
         
         if not validated:
-            log("WARN", "LLM returned empty/invalid action items, using fallback")
+            logger.warning("LLM returned empty/invalid action items, using fallback")
             return create_fallback_action_items(text)
         
         return validated
         
     except json.JSONDecodeError as e:
-        log("ERROR", f"JSON parse failed: {e}")
+        logger.error(f"JSON parse failed: {e} | Raw: {response_text[:200]}...")
         return create_fallback_action_items(text)
     except Exception as e:
-        log("ERROR", f"LLM extraction failed: {e}")
+        logger.error(f"LLM extraction failed: {e}")
         return create_fallback_action_items(text)
 
 def create_fallback_action_items(text):
@@ -217,7 +225,7 @@ Respond ONLY with valid JSON: {{"summary": "your summary here"}}
     response = call_llm_with_retry(client, messages, "llama-3.3-70b-versatile", 256)
     
     if not response:
-        log("WARN", "Using fallback summary due to LLM failure")
+        logger.warning("Using fallback summary due to LLM failure")
         summary_text = create_fallback_summary(text)
     else:
         try:
@@ -233,7 +241,7 @@ Respond ONLY with valid JSON: {{"summary": "your summary here"}}
                 summary_text = create_fallback_summary(text)
                 
         except Exception as e:
-            log("ERROR", f"Summary generation failed: {e}")
+            logger.error(f"Summary generation failed: {e}")
             summary_text = create_fallback_summary(text)
     
     duration_str = f"{duration:.1f} seconds" if duration else f"{len(text.split()) * 0.5:.1f} seconds"
@@ -251,20 +259,21 @@ def create_fallback_summary(text):
 def transcribe_with_groq(audio_path):
     api_key = os.environ.get("GROQ_API_KEY")
     result_json = None
+    file_size = os.path.getsize(audio_path) if os.path.exists(audio_path) else 0
     
     if not api_key:
         return json.dumps({"error": "GROQ_API_KEY not set. Get free key at https://console.groq.com/"})
     
     validation_error = validate_audio_file(audio_path)
     if validation_error:
-        log("ERROR", f"File validation failed: {validation_error}")
+        logger.error(f"File validation failed [{audio_path}]: {validation_error}")
         return json.dumps({"error": f"Invalid file: {validation_error}"})
     
     try:
         from groq import Groq
         client = Groq(api_key=api_key, timeout=REQUEST_TIMEOUT)
         
-        log("INFO", f"Starting transcription: {audio_path}")
+        logger.info(f"Processing started [{audio_path}] ({file_size / 1024:.1f} KB)")
         
         with open(audio_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
@@ -278,10 +287,10 @@ def transcribe_with_groq(audio_path):
         duration = getattr(transcription, 'duration', None)
         
         if duration and duration > MAX_DURATION_SECONDS:
-            log("ERROR", f"Audio too long: {duration:.1f}s (max: {MAX_DURATION_SECONDS}s)")
+            logger.error(f"Audio too long [{audio_path}]: {duration:.1f}s (max: {MAX_DURATION_SECONDS}s)")
             return json.dumps({"error": f"Audio too long: {duration:.1f} seconds (max: {MAX_DURATION_SECONDS} seconds)"})
         
-        log("INFO", f"Transcription complete, extracting action items...")
+        logger.info(f"Transcription complete, extracting action items...")
         
         action_items = extract_action_items_with_llm(client, text)
         summary = generate_summary(client, text, action_items, duration)
@@ -294,7 +303,7 @@ def transcribe_with_groq(audio_path):
         }
         
         result_json = json.dumps(result)
-        log("INFO", f"Processing complete: {len(action_items)} action items")
+        logger.info(f"Processing complete [{audio_path}]: {len(action_items)} action items, {len(text)} chars transcript")
         return result_json
         
     except ImportError:
@@ -302,9 +311,9 @@ def transcribe_with_groq(audio_path):
     except Exception as e:
         error_msg = str(e)
         if "invalid" in error_msg.lower() or "corrupt" in error_msg.lower():
-            log("ERROR", f"Corrupted or invalid audio file: {error_msg}")
+            logger.error(f"Corrupted/invalid audio [{audio_path}]: {error_msg}")
             return json.dumps({"error": f"Invalid audio file: {error_msg}"})
-        log("ERROR", f"Transcription failed: {error_msg}")
+        logger.error(f"Transcription failed [{audio_path}]: {error_msg}")
         return json.dumps({"error": error_msg})
     finally:
         cleanup_file(audio_path)
@@ -314,7 +323,7 @@ def cleanup_file(file_path):
         if os.path.exists(file_path):
             os.remove(file_path)
     except Exception as e:
-        log("WARN", f"Failed to cleanup {file_path}: {e}")
+        logger.warning(f"Failed to cleanup {file_path}: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
