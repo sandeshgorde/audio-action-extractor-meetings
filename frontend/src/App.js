@@ -41,9 +41,9 @@ function App() {
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
+      if (res.ok && data.success !== false) {
         setResponse(data);
-      } else if (res.ok && data.error) {
+      } else if (res.ok && (data.error || data.message)) {
         setError(data.message || data.error);
       } else {
         setError(data.message || `Server error (${res.status})`);
@@ -51,8 +51,10 @@ function App() {
     } catch (err) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         setError('Cannot connect to server. Please ensure the backend is running.');
+      } else if (res && !res.ok) {
+        setError(`Server error (${res.status}). Please try again.`);
       } else {
-        setError('Failed to connect to server: ' + err.message);
+        setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -81,6 +83,11 @@ function App() {
                   <span className="text-text-secondary text-sm">
                     {selectedFile ? selectedFile.name : 'Choose audio file'}
                   </span>
+                  {selectedFile && (
+                    <span className="ml-2 text-xs text-text-tertiary">
+                      ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  )}
                 </div>
               </label>
               <button
@@ -137,7 +144,7 @@ function App() {
                 </div>
               </div>
 
-              {response.action_items && response.action_items.length > 0 && (
+              {response.action_items && response.action_items.length > 0 ? (
                 <div className="bg-surface-secondary border border-border-subtle rounded-2xl p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <svg className="w-4 h-4 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -173,6 +180,10 @@ function App() {
                       </div>
                     ))}
                   </div>
+                </div>
+              ) : (
+                <div className="bg-surface-secondary border border-border-subtle rounded-2xl p-5 text-center">
+                  <p className="text-text-tertiary text-sm">No action items detected</p>
                 </div>
               )}
 
