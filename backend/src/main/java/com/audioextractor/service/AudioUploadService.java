@@ -197,8 +197,8 @@ public class AudioUploadService {
                         ? root.get("summary").get("summary").asText() : "",
                     root.has("summary") && root.get("summary").has("action_items_count") 
                         ? root.get("summary").get("action_items_count").asInt() : 0,
-                    root.has("summary") && root.get("summary").has("duration_estimate") 
-                        ? root.get("summary").get("duration_estimate").asText() : "unknown"
+                    root.has("summary") && root.get("summary").has("duration") 
+                        ? root.get("summary").get("duration").asText() : "unknown"
             );
 
             return new UploadResult(filename, originalName, size, transcript, language, actionItems, summary);
