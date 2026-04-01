@@ -16,6 +16,8 @@ MAX_RETRIES = 2
 REQUEST_TIMEOUT = 60
 ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".flac", ".ogg"}
 MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_DURATION_SECONDS = 120
+BYTES_PER_SECOND_ESTIMATE = 256 * 1024
 
 def log(level, message):
     print(f"[{level}] {message}", file=sys.stderr)
@@ -36,6 +38,10 @@ def validate_audio_file(file_path):
             return "File is empty"
         if size > MAX_FILE_SIZE:
             return f"File too large: {size / 1024 / 1024:.1f}MB (max: {MAX_FILE_SIZE / 1024 / 1024:.0f}MB)"
+        
+        estimated_duration = size / BYTES_PER_SECOND_ESTIMATE
+        if estimated_duration > MAX_DURATION_SECONDS:
+            return f"File too long: ~{estimated_duration / 60:.1f} minutes (max: {MAX_DURATION_SECONDS / 60} minutes)"
     except OSError as e:
         return f"Cannot read file: {e}"
     
@@ -270,6 +276,10 @@ def transcribe_with_groq(audio_path):
         
         text = transcription.text
         duration = getattr(transcription, 'duration', None)
+        
+        if duration and duration > MAX_DURATION_SECONDS:
+            log("ERROR", f"Audio too long: {duration:.1f}s (max: {MAX_DURATION_SECONDS}s)")
+            return json.dumps({"error": f"Audio too long: {duration:.1f} seconds (max: {MAX_DURATION_SECONDS} seconds)"})
         
         log("INFO", f"Transcription complete, extracting action items...")
         
