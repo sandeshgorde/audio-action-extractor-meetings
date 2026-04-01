@@ -9,8 +9,14 @@ import sys
 import json
 import os
 import re
+import time
 
 VALID_PRIORITIES = {"high", "medium", "low"}
+MAX_RETRIES = 2
+REQUEST_TIMEOUT = 60
+
+def log(level, message):
+    print(f"[{level}] {message}", file=sys.stderr)
 
 def normalize_priority(priority):
     if not priority:
@@ -63,6 +69,40 @@ def validate_llm_response(raw_response, text, is_action_items=True):
             return raw_response.strip()[:500] or ""
         return ""
 
+def call_llm_with_retry(client, messages, model, max_tokens, retries=MAX_RETRIES):
+    last_error = None
+    
+    for attempt in range(retries + 1):
+        try:
+            if attempt > 0:
+                wait_time = 2 ** attempt
+                log("INFO", f"Retry attempt {attempt}/{retries} after {wait_time}s delay")
+                time.sleep(wait_time)
+            
+            response = client.chat.completions.create(
+                messages=messages,
+                model=model,
+                temperature=0.3,
+                max_tokens=max_tokens
+            )
+            return response
+        
+        except Exception as e:
+            last_error = e
+            error_msg = str(e)
+            
+            if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                log("WARN", f"Rate limited, attempt {attempt + 1}/{retries + 1}")
+                continue
+            elif attempt < retries:
+                log("WARN", f"LLM call failed: {error_msg}, retrying...")
+                continue
+            else:
+                log("ERROR", f"LLM call failed after {retries + 1} attempts: {error_msg}")
+                return None
+    
+    return None
+
 def extract_action_items_with_llm(client, text):
     prompt = """You are a meeting assistant. Analyze the following meeting transcript and extract action items.
 
@@ -76,24 +116,25 @@ Return a JSON array of action items. Only include items that are actual tasks/as
 
 Transcript:""" + text
 
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a meeting assistant. Respond ONLY with a valid JSON array. No markdown, no explanations."
+        },
+        {
+            "role": "user", 
+            "content": prompt
+        }
+    ]
+    
+    response = call_llm_with_retry(client, messages, "llama-3.3-70b-versatile", 1024)
+    
+    if not response:
+        log("WARN", "Using fallback action items due to LLM failure")
+        return create_fallback_action_items(text)
+    
     try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a meeting assistant. Respond ONLY with a valid JSON array. No markdown, no explanations."
-                },
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
-            ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.3,
-            max_tokens=1024
-        )
-        
-        response_text = chat_completion.choices[0].message.content.strip()
+        response_text = response.choices[0].message.content.strip()
         response_text = re.sub(r'^```json\s*', '', response_text)
         response_text = re.sub(r'^```\s*', '', response_text)
         response_text = re.sub(r'\s*```$', '', response_text)
@@ -102,17 +143,16 @@ Transcript:""" + text
         validated = validate_llm_response(parsed, text, is_action_items=True)
         
         if not validated:
-            print(f"[WARN] LLM returned empty/invalid action items, using fallback", file=sys.stderr)
+            log("WARN", "LLM returned empty/invalid action items, using fallback")
             return create_fallback_action_items(text)
         
         return validated
         
     except json.JSONDecodeError as e:
-        print(f"[ERROR] JSON parse failed: {e}", file=sys.stderr)
-        print(f"[DEBUG] Raw LLM response: {response_text[:500] if 'response_text' in locals() else 'N/A'}", file=sys.stderr)
+        log("ERROR", f"JSON parse failed: {e}")
         return create_fallback_action_items(text)
     except Exception as e:
-        print(f"[ERROR] LLM extraction failed: {e}", file=sys.stderr)
+        log("ERROR", f"LLM extraction failed: {e}")
         return create_fallback_action_items(text)
 
 def create_fallback_action_items(text):
@@ -137,34 +177,35 @@ Transcript: {text}
 Respond ONLY with valid JSON: {{"summary": "your summary here"}}
 """
 
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system", 
-                    "content": "You are a meeting assistant. Respond ONLY with valid JSON."
-                },
-                {"role": "user", "content": prompt}
-            ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.3,
-            max_tokens=256
-        )
-        
-        response_text = chat_completion.choices[0].message.content.strip()
-        response_text = re.sub(r'^```json\s*', '', response_text)
-        response_text = re.sub(r'^```\s*', '', response_text)
-        response_text = re.sub(r'\s*```$', '', response_text)
-        
-        parsed = json.loads(response_text)
-        summary_text = validate_llm_response(parsed, text, is_action_items=False)
-        
-        if not summary_text:
-            summary_text = create_fallback_summary(text)
-            
-    except Exception as e:
-        print(f"[ERROR] Summary generation failed: {e}", file=sys.stderr)
+    messages = [
+        {
+            "role": "system", 
+            "content": "You are a meeting assistant. Respond ONLY with valid JSON."
+        },
+        {"role": "user", "content": prompt}
+    ]
+    
+    response = call_llm_with_retry(client, messages, "llama-3.3-70b-versatile", 256)
+    
+    if not response:
+        log("WARN", "Using fallback summary due to LLM failure")
         summary_text = create_fallback_summary(text)
+    else:
+        try:
+            response_text = response.choices[0].message.content.strip()
+            response_text = re.sub(r'^```json\s*', '', response_text)
+            response_text = re.sub(r'^```\s*', '', response_text)
+            response_text = re.sub(r'\s*```$', '', response_text)
+            
+            parsed = json.loads(response_text)
+            summary_text = validate_llm_response(parsed, text, is_action_items=False)
+            
+            if not summary_text:
+                summary_text = create_fallback_summary(text)
+                
+        except Exception as e:
+            log("ERROR", f"Summary generation failed: {e}")
+            summary_text = create_fallback_summary(text)
     
     duration_str = f"{duration:.1f} seconds" if duration else f"{len(text.split()) * 0.5:.1f} seconds"
     
@@ -186,7 +227,7 @@ def transcribe_with_groq(audio_path):
     
     try:
         from groq import Groq
-        client = Groq(api_key=api_key)
+        client = Groq(api_key=api_key, timeout=REQUEST_TIMEOUT)
         
         with open(audio_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
@@ -224,7 +265,7 @@ def cleanup_file(file_path):
         if os.path.exists(file_path):
             os.remove(file_path)
     except Exception as e:
-        print(f"[WARN] Failed to cleanup {file_path}: {e}", file=sys.stderr)
+        log("WARN", f"Failed to cleanup {file_path}: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
