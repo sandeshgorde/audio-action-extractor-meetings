@@ -14,9 +14,32 @@ import time
 VALID_PRIORITIES = {"high", "medium", "low"}
 MAX_RETRIES = 2
 REQUEST_TIMEOUT = 60
+ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".flac", ".ogg"}
+MAX_FILE_SIZE = 50 * 1024 * 1024
 
 def log(level, message):
     print(f"[{level}] {message}", file=sys.stderr)
+
+def validate_audio_file(file_path):
+    if not os.path.exists(file_path):
+        return "File not found"
+    if not os.path.isfile(file_path):
+        return "Path is not a file"
+    
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return f"Invalid file type: {ext}. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+    
+    try:
+        size = os.path.getsize(file_path)
+        if size == 0:
+            return "File is empty"
+        if size > MAX_FILE_SIZE:
+            return f"File too large: {size / 1024 / 1024:.1f}MB (max: {MAX_FILE_SIZE / 1024 / 1024:.0f}MB)"
+    except OSError as e:
+        return f"Cannot read file: {e}"
+    
+    return None
 
 def normalize_priority(priority):
     if not priority:
@@ -221,13 +244,21 @@ def create_fallback_summary(text):
 
 def transcribe_with_groq(audio_path):
     api_key = os.environ.get("GROQ_API_KEY")
+    result_json = None
     
     if not api_key:
         return json.dumps({"error": "GROQ_API_KEY not set. Get free key at https://console.groq.com/"})
     
+    validation_error = validate_audio_file(audio_path)
+    if validation_error:
+        log("ERROR", f"File validation failed: {validation_error}")
+        return json.dumps({"error": f"Invalid file: {validation_error}"})
+    
     try:
         from groq import Groq
         client = Groq(api_key=api_key, timeout=REQUEST_TIMEOUT)
+        
+        log("INFO", f"Starting transcription: {audio_path}")
         
         with open(audio_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
@@ -240,6 +271,8 @@ def transcribe_with_groq(audio_path):
         text = transcription.text
         duration = getattr(transcription, 'duration', None)
         
+        log("INFO", f"Transcription complete, extracting action items...")
+        
         action_items = extract_action_items_with_llm(client, text)
         summary = generate_summary(client, text, action_items, duration)
         
@@ -250,15 +283,21 @@ def transcribe_with_groq(audio_path):
             "summary": summary
         }
         
-        cleanup_file(audio_path)
-        return json.dumps(result)
+        result_json = json.dumps(result)
+        log("INFO", f"Processing complete: {len(action_items)} action items")
+        return result_json
         
     except ImportError:
-        cleanup_file(audio_path)
         return json.dumps({"error": "Install groq: pip install groq"})
     except Exception as e:
+        error_msg = str(e)
+        if "invalid" in error_msg.lower() or "corrupt" in error_msg.lower():
+            log("ERROR", f"Corrupted or invalid audio file: {error_msg}")
+            return json.dumps({"error": f"Invalid audio file: {error_msg}"})
+        log("ERROR", f"Transcription failed: {error_msg}")
+        return json.dumps({"error": error_msg})
+    finally:
         cleanup_file(audio_path)
-        return json.dumps({"error": str(e)})
 
 def cleanup_file(file_path):
     try:
