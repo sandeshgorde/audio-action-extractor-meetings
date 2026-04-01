@@ -122,18 +122,21 @@ function App() {
               </svg>
               Dashboard
             </div>
-            <div className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer ${darkMode ? 'text-[#555] hover:bg-[#161616]' : 'text-gray-500 hover:bg-gray-100'} transition-colors`}>
-              <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M8 2v12M2 8h12"/>
-              </svg>
-              New Analysis
-            </div>
-            <div className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer ${darkMode ? 'text-[#555] hover:bg-[#161616]' : 'text-gray-500 hover:bg-gray-100'} transition-colors`}>
-              <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M13 13L9.5 9.5M11 6.5A4.5 4.5 0 112 6.5a4.5 4.5 0 019 0z"/>
-              </svg>
-              Preferences
-            </div>
+            {(response || selectedFile) && (
+              <button
+                onClick={() => {
+                  setResponse(null);
+                  setSelectedFile(null);
+                  setError(null);
+                }}
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer w-full ${darkMode ? 'text-[#555] hover:bg-[#161616]' : 'text-gray-500 hover:bg-gray-100'} transition-colors`}
+              >
+                <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10"/>
+                </svg>
+                Clear
+              </button>
+            )}
           </div>
         </div>
 
@@ -149,7 +152,7 @@ function App() {
                 {response ? `${selectedFile?.name || 'audio'} · analyzed ${getTimeAgo()}` : 'Upload an audio file to analyze'}
               </p>
             </div>
-            <label className={`flex items-center gap-1.5 ${darkMode ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-lg px-3 py-2 text-xs font-semibold cursor-pointer flex-shrink-0 hover:opacity-90 transition-opacity`}>
+            <label className="flex items-center gap-1.5 bg-[#EB0029] text-white rounded-lg px-3 py-2 text-xs font-semibold cursor-pointer flex-shrink-0 hover:opacity-90 transition-opacity">
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M8 2v10M4 6l4-4 4 4M2 13h12"/>
               </svg>
