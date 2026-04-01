@@ -258,16 +258,15 @@ def create_fallback_summary(text):
 
 def transcribe_with_groq(audio_path):
     api_key = os.environ.get("GROQ_API_KEY")
-    result_json = None
     file_size = os.path.getsize(audio_path) if os.path.exists(audio_path) else 0
     
     if not api_key:
-        return json.dumps({"error": "GROQ_API_KEY not set. Get free key at https://console.groq.com/"})
+        return json.dumps({"success": False, "data": None, "error": "GROQ_API_KEY not set. Get free key at https://console.groq.com/"})
     
     validation_error = validate_audio_file(audio_path)
     if validation_error:
         logger.error(f"File validation failed [{audio_path}]: {validation_error}")
-        return json.dumps({"error": f"Invalid file: {validation_error}"})
+        return json.dumps({"success": False, "data": None, "error": f"Invalid file: {validation_error}"})
     
     try:
         from groq import Groq
@@ -288,7 +287,7 @@ def transcribe_with_groq(audio_path):
         
         if duration and duration > MAX_DURATION_SECONDS:
             logger.error(f"Audio too long [{audio_path}]: {duration:.1f}s (max: {MAX_DURATION_SECONDS}s)")
-            return json.dumps({"error": f"Audio too long: {duration:.1f} seconds (max: {MAX_DURATION_SECONDS} seconds)"})
+            return json.dumps({"success": False, "data": None, "error": f"Audio too long: {duration:.1f} seconds (max: {MAX_DURATION_SECONDS} seconds)"})
         
         logger.info(f"Transcription complete, extracting action items...")
         
@@ -296,25 +295,26 @@ def transcribe_with_groq(audio_path):
         summary = generate_summary(client, text, action_items, duration)
         
         result = {
-            "text": text,
-            "language": "en",
-            "action_items": action_items,
-            "summary": summary
+            "raw_transcript": text,
+            "tasks": action_items,
+            "summary": summary.get("summary", ""),
+            "action_items_count": len(action_items),
+            "duration": summary.get("duration", "unknown"),
+            "language": "en"
         }
         
-        result_json = json.dumps(result)
         logger.info(f"Processing complete [{audio_path}]: {len(action_items)} action items, {len(text)} chars transcript")
-        return result_json
+        return json.dumps({"success": True, "data": result, "error": None})
         
     except ImportError:
-        return json.dumps({"error": "Install groq: pip install groq"})
+        return json.dumps({"success": False, "data": None, "error": "Install groq: pip install groq"})
     except Exception as e:
         error_msg = str(e)
         if "invalid" in error_msg.lower() or "corrupt" in error_msg.lower():
             logger.error(f"Corrupted/invalid audio [{audio_path}]: {error_msg}")
-            return json.dumps({"error": f"Invalid audio file: {error_msg}"})
+            return json.dumps({"success": False, "data": None, "error": f"Invalid audio file: {error_msg}"})
         logger.error(f"Transcription failed [{audio_path}]: {error_msg}")
-        return json.dumps({"error": error_msg})
+        return json.dumps({"success": False, "data": None, "error": error_msg})
     finally:
         cleanup_file(audio_path)
 
@@ -327,7 +327,7 @@ def cleanup_file(file_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(json.dumps({"error": "No audio file provided"}))
+        print(json.dumps({"success": False, "data": None, "error": "No audio file provided"}))
         sys.exit(1)
     
     audio_path = sys.argv[1]

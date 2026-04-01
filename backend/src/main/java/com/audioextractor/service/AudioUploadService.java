@@ -166,7 +166,11 @@ public class AudioUploadService {
 
     private String extractErrorMessage(String json) {
         try {
-            return objectMapper.readTree(json).get("error").asText();
+            var root = objectMapper.readTree(json);
+            if (root.has("error") && !root.get("error").isNull()) {
+                return root.get("error").asText();
+            }
+            return "Unknown error";
         } catch (Exception e) {
             return "Unknown error";
         }
@@ -176,30 +180,40 @@ public class AudioUploadService {
         try {
             var root = objectMapper.readTree(jsonResponse);
             
-            String transcript = root.has("text") ? root.get("text").asText() : "";
-            String language = root.has("language") ? root.get("language").asText() : "unknown";
+            var data = root.has("data") ? root.get("data") : root;
+            
+            String transcript = data.has("raw_transcript") ? data.get("raw_transcript").asText() : "";
+            String language = data.has("language") ? data.get("language").asText() : "en";
             
             List<ActionItem> actionItems = new ArrayList<>();
-            if (root.has("action_items") && root.get("action_items").isArray()) {
-                var actionItemsArray = root.get("action_items");
-                for (var ai : actionItemsArray) {
+            if (data.has("tasks") && data.get("tasks").isArray()) {
+                var tasksArray = data.get("tasks");
+                for (var task : tasksArray) {
                     actionItems.add(new ActionItem(
-                            ai.has("task") ? ai.get("task").asText() : "",
-                            ai.has("assigned_to") ? ai.get("assigned_to").asText() : "Unassigned",
-                            ai.has("deadline") ? ai.get("deadline").asText() : "Not specified",
-                            ai.has("priority") ? ai.get("priority").asText() : "medium"
+                            task.has("task") ? task.get("task").asText() : "",
+                            task.has("assigned_to") ? task.get("assigned_to").asText() : "Unassigned",
+                            task.has("deadline") ? task.get("deadline").asText() : "Not specified",
+                            task.has("priority") ? task.get("priority").asText() : "medium"
                     ));
                 }
             }
             
-            Summary summary = new Summary(
-                    root.has("summary") && root.get("summary").has("summary") 
-                        ? root.get("summary").get("summary").asText() : "",
-                    root.has("summary") && root.get("summary").has("action_items_count") 
-                        ? root.get("summary").get("action_items_count").asInt() : 0,
-                    root.has("summary") && root.get("summary").has("duration") 
-                        ? root.get("summary").get("duration").asText() : "unknown"
-            );
+            String summaryText = "";
+            int actionCount = actionItems.size();
+            String duration = "unknown";
+            
+            if (data.has("summary")) {
+                var summaryNode = data.get("summary");
+                if (summaryNode.isObject()) {
+                    summaryText = summaryNode.has("summary") ? summaryNode.get("summary").asText() : "";
+                    actionCount = summaryNode.has("action_items_count") ? summaryNode.get("action_items_count").asInt() : actionItems.size();
+                    duration = summaryNode.has("duration") ? summaryNode.get("duration").asText() : "unknown";
+                } else if (summaryNode.isTextual()) {
+                    summaryText = summaryNode.asText();
+                }
+            }
+            
+            Summary summary = new Summary(summaryText, actionCount, duration);
 
             return new UploadResult(filename, originalName, size, transcript, language, actionItems, summary);
             
