@@ -82,13 +82,15 @@ def validate_action_item(item, index):
         return None
     
     assigned = item.get("assigned_to") or item.get("assignedTo") or item.get("Assignee") or "Unassigned"
-    deadline = item.get("deadline") or item.get("Deadline") or item.get("due") or "Not specified"
+    deadline_raw = item.get("deadline") or item.get("Deadline") or item.get("due") or "Not specified"
+    deadline_date = item.get("deadline_date") or item.get("deadlineDate")
     summary = str(item.get("summary") or item.get("Summary") or task).strip()[:200]
     
     return {
         "task": task,
         "assigned_to": str(assigned).strip() or "Unassigned",
-        "deadline": str(deadline).strip() or "Not specified",
+        "deadline": str(deadline_raw).strip() or "Not specified",
+        "deadline_date": deadline_date if deadline_date else None,
         "priority": normalize_priority(item.get("priority", item.get("Priority", "medium"))),
         "summary": summary
     }
@@ -147,7 +149,8 @@ def extract_action_items_with_llm(client, text):
 For each action item, identify:
 - task: The specific action to be taken (clear and concise, max 100 chars)
 - assigned_to: The person responsible (extract from context, or "Unassigned" if not mentioned)
-- deadline: When the task should be completed (extract from context, or "Not specified" if not mentioned)
+- deadline: The raw deadline text (e.g., "by Friday", "next Monday", "end of week")
+- deadline_date: The deadline in ISO format (YYYY-MM-DD), or null if cannot determine
 - priority: "high", "medium", or "low" (based on urgency)
 - summary: Brief context about this task (1 sentence, why this task matters)
 
@@ -205,6 +208,7 @@ def create_fallback_action_items(text):
                 "task": sentence[:100],
                 "assigned_to": "Unassigned",
                 "deadline": "Not specified",
+                "deadline_date": None,
                 "priority": "medium",
                 "summary": sentence[:200]
             })

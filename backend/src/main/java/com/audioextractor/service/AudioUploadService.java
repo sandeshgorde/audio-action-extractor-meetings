@@ -38,7 +38,7 @@ public class AudioUploadService {
     @Value("${app.python.script:scripts/transcribe.py}")
     private String pythonScriptPath;
 
-    public record ActionItem(String task, String assignedTo, String deadline, String priority, String summary) {}
+    public record ActionItem(String task, String assignedTo, String deadline, String deadlineDate, String priority, String summary) {}
     public record Summary(String summary, int actionItemsCount, String durationEstimate) {}
     public record UploadResult(String filename, String originalName, long size, String transcript, 
                                String language, List<ActionItem> actionItems, Summary summary) {}
@@ -189,10 +189,15 @@ public class AudioUploadService {
             if (data.has("tasks") && data.get("tasks").isArray()) {
                 var tasksArray = data.get("tasks");
                 for (var task : tasksArray) {
+                    String deadlineDate = null;
+                    if (task.has("deadline_date") && !task.get("deadline_date").isNull()) {
+                        deadlineDate = task.get("deadline_date").asText();
+                    }
                     actionItems.add(new ActionItem(
                             task.has("task") ? task.get("task").asText() : "",
                             task.has("assigned_to") ? task.get("assigned_to").asText() : "Unassigned",
                             task.has("deadline") ? task.get("deadline").asText() : "Not specified",
+                            deadlineDate,
                             task.has("priority") ? task.get("priority").asText() : "medium",
                             task.has("summary") ? task.get("summary").asText() : ""
                     ));

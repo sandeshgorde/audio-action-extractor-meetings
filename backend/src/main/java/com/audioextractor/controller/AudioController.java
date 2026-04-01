@@ -45,14 +45,19 @@ public class AudioController {
         
         AudioUploadService.UploadResult result = audioUploadService.uploadAndTranscribe(file);
 
-        List<Map<String, String>> actionItems = result.actionItems().stream()
-                .map(ai -> Map.of(
-                        "task", ai.task(),
-                        "assigned_to", ai.assignedTo(),
-                        "deadline", ai.deadline(),
-                        "priority", ai.priority(),
-                        "summary", ai.summary() != null ? ai.summary() : ""
-                ))
+        List<Map<String, Object>> actionItems = result.actionItems().stream()
+                .map(ai -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("task", ai.task());
+                    item.put("assigned_to", ai.assignedTo());
+                    item.put("deadline", ai.deadline());
+                    if (ai.deadlineDate() != null) {
+                        item.put("deadline_date", ai.deadlineDate());
+                    }
+                    item.put("priority", ai.priority());
+                    item.put("summary", ai.summary() != null ? ai.summary() : "");
+                    return item;
+                })
                 .toList();
 
         Map<String, Object> response = new HashMap<>();
