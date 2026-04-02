@@ -40,12 +40,10 @@ function App() {
 
       const data = await res.json();
 
-      if (res.ok && data.success !== false) {
-        setResponse(data);
-      } else if (res.ok && (data.error || data.message)) {
-        setError(data.message || data.error);
+      if (res.ok && data.success === true && data.data) {
+        setResponse(data.data);
       } else {
-        setError(data.message || `Server error (${res.status})`);
+        setError(data.error || 'Something went wrong');
       }
     } catch (err) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
@@ -58,7 +56,7 @@ function App() {
     }
   };
 
-  const priorityCount = response?.action_items?.reduce((acc, item) => {
+  const priorityCount = response?.tasks?.reduce((acc, item) => {
     const p = item.priority?.toLowerCase() || 'medium';
     acc[p] = (acc[p] || 0) + 1;
     return acc;
@@ -75,7 +73,7 @@ function App() {
   };
 
   const getTranscriptWordCount = () => {
-    return response?.transcript?.split(/\s+/).filter(Boolean).length || 0;
+    return response?.raw_transcript?.split(/\s+/).filter(Boolean).length || 0;
   };
 
   return (
@@ -165,7 +163,7 @@ function App() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
             <div className={`${darkMode ? 'bg-[#0f0f0f] border-[#1a1a1a]' : 'bg-white border-gray-200'} border rounded-xl p-3`}>
               <div className={`text-[10px] ${darkMode ? 'text-[#444]' : 'text-gray-400'} font-medium uppercase tracking-wide mb-2`}>Action items</div>
-              <div className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{response?.action_items?.length || 0}</div>
+              <div className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{response?.tasks?.length || 0}</div>
               <div className={`text-[11px] mt-1 ${darkMode ? 'text-[#333]' : 'text-gray-300'}`}>from this meeting</div>
             </div>
             <div className={`${darkMode ? 'bg-[#0f0f0f] border-[#1a1a1a]' : 'bg-white border-gray-200'} border rounded-xl p-3`}>
@@ -176,7 +174,7 @@ function App() {
             <div className={`${darkMode ? 'bg-[#0f0f0f] border-[#1a1a1a]' : 'bg-white border-gray-200'} border rounded-xl p-3`}>
               <div className={`text-[10px] ${darkMode ? 'text-[#444]' : 'text-gray-400'} font-medium uppercase tracking-wide mb-2`}>Duration</div>
               <div className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {response?.summary?.duration_estimate ? '~' + (parseFloat(response.summary.duration_estimate) / 60).toFixed(0) + 'm' : '--'}
+                {response?.duration || '--'}
               </div>
               <div className={`text-[11px] mt-1 ${darkMode ? 'text-[#333]' : 'text-gray-300'}`}>{getTranscriptWordCount()} words</div>
             </div>
@@ -255,8 +253,8 @@ function App() {
                 <div className={`${darkMode ? 'bg-[#0f0f0f] border-[#1a1a1a]' : 'bg-white border-gray-200'} border rounded-xl p-4`}>
                   <div className={`text-[11px] font-medium ${darkMode ? 'text-[#444]' : 'text-gray-400'} uppercase tracking-wide mb-3`}>Action items</div>
                   <div className="space-y-2">
-                    {response.action_items?.map((item, index) => (
-                      <div key={index} className={`flex items-start gap-2 py-2 ${index < (response.action_items?.length || 0) - 1 ? (darkMode ? 'border-b border-[#141414]' : 'border-b border-gray-100') : ''}`}>
+                    {response.tasks?.map((item, index) => (
+                      <div key={index} className={`flex items-start gap-2 py-2 ${index < (response.tasks?.length || 0) - 1 ? (darkMode ? 'border-b border-[#141414]' : 'border-b border-gray-100') : ''}`}>
                         <span className={`text-[11px] ${darkMode ? 'text-[#2a2a2a]' : 'text-gray-300'} font-mono min-w-[22px]`}>
                           {String(index + 1).padStart(2, '0')}
                         </span>
@@ -276,16 +274,16 @@ function App() {
                         </span>
                       </div>
                     ))}
-                    {(!response.action_items || response.action_items.length === 0) && (
+                    {(!response.tasks || response.tasks.length === 0) && (
                       <p className={`text-xs ${darkMode ? 'text-[#555]' : 'text-gray-400'}`}>No action items detected</p>
                     )}
                   </div>
                 </div>
 
-                <div className={`${darkMode ? 'bg-[#0f0f0f] border-[#1a1a1a]' : 'bg-white border-gray-200'} border rounded-xl p-4`}>
+                  <div className={`${darkMode ? 'bg-[#0f0f0f] border-[#1a1a1a]' : 'bg-white border-gray-200'} border rounded-xl p-4`}>
                   <div className={`text-[11px] font-medium ${darkMode ? 'text-[#444]' : 'text-gray-400'} uppercase tracking-wide mb-3`}>Summary</div>
                   <p className={`text-xs ${darkMode ? 'text-[#555]' : 'text-gray-500'} leading-relaxed`}>
-                    {response.summary?.text || response.transcript?.slice(0, 300) || 'No summary available'}
+                    {response.summary || response.raw_transcript?.slice(0, 300) || 'No summary available'}
                   </p>
                 </div>
               </div>
@@ -308,7 +306,7 @@ function App() {
                                 : priority === 'medium' ? (darkMode ? 'bg-[#333]' : 'bg-gray-400')
                                 : (darkMode ? 'bg-[#222]' : 'bg-gray-300')
                             }`}
-                            style={{width: `${Math.max((priorityCount[priority] || 0) / Math.max(response.action_items?.length || 1, 1) * 100, 2)}%`}}
+                            style={{width: `${Math.max((priorityCount[priority] || 0) / Math.max(response.tasks?.length || 1, 1) * 100, 2)}%`}}
                           ></div>
                         </div>
                       </div>
@@ -319,7 +317,7 @@ function App() {
                 <div className={`${darkMode ? 'bg-[#0f0f0f] border-[#1a1a1a]' : 'bg-white border-gray-200'} border rounded-xl p-4`}>
                   <div className={`text-[11px] font-medium ${darkMode ? 'text-[#444]' : 'text-gray-400'} uppercase tracking-wide mb-2`}>Transcript</div>
                   <p className={`text-[11px] ${darkMode ? 'text-[#2a2a2a]' : 'text-gray-300'} font-mono leading-relaxed max-h-32 overflow-y-auto`}>
-                    {response.transcript || 'No transcript available'}
+                    {response.raw_transcript || 'No transcript available'}
                   </p>
                 </div>
               </div>
