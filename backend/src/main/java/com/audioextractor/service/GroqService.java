@@ -76,7 +76,6 @@ public class GroqService {
             });
             body.add("model", WHISPER_MODEL);
             body.add("response_format", "verbose_json");
-            body.add("language", "en");
 
             HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
 
