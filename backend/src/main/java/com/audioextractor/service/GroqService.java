@@ -35,14 +35,12 @@ public class GroqService {
     @Value("${groq.api.key}")
     private String groqApiKey;
 
-    @PostConstruct
-    public void init() {
-        if (groqApiKey == null || groqApiKey.isEmpty()) {
-            String envKey = System.getenv("GROQ_API_KEY");
-            if (envKey != null && !envKey.isEmpty()) {
-                this.groqApiKey = envKey;
-            }
+    private String getApiKey() {
+        String key = System.getenv("GROQ_API_KEY");
+        if (key != null && !key.isEmpty()) {
+            return key;
         }
+        return groqApiKey;
     }
 
     @Value("${groq.api.url:https://api.groq.com}")
@@ -66,7 +64,7 @@ public class GroqService {
             String url = groqApiUrl + "/openai/v1/audio/transcriptions";
 
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(groqApiKey);
+            headers.setBearerAuth(getApiKey());
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
@@ -148,7 +146,7 @@ public class GroqService {
             String url = groqApiUrl + "/openai/v1/chat/completions";
 
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(groqApiKey);
+            headers.setBearerAuth(getApiKey());
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             Map<String, Object> requestBody = Map.of(
