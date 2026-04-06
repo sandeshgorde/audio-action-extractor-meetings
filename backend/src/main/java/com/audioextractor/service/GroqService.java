@@ -4,6 +4,7 @@ import com.audioextractor.exception.AudioProcessingException;
 import com.audioextractor.exception.AudioProcessingException.ErrorCode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,16 @@ public class GroqService {
 
     @Value("${groq.api.key}")
     private String groqApiKey;
+
+    @PostConstruct
+    public void init() {
+        if (groqApiKey == null || groqApiKey.isEmpty()) {
+            String envKey = System.getenv("GROQ_API_KEY");
+            if (envKey != null && !envKey.isEmpty()) {
+                this.groqApiKey = envKey;
+            }
+        }
+    }
 
     @Value("${groq.api.url:https://api.groq.com}")
     private String groqApiUrl;
