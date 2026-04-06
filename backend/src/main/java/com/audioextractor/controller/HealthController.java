@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = {
+    "http://localhost:3000",
+    "https://audio-action-extractor-meetings.vercel.app"
+})
 public class HealthController {
 
     @GetMapping("/health")
