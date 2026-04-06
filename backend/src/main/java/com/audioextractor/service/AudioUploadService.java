@@ -63,7 +63,7 @@ public class AudioUploadService {
             log.debug("Starting transcription for: {}", storedFilename);
             String jsonResponse = transcribeAudio(targetPath.toString());
             
-            if (jsonResponse.contains("\"error\"")) {
+            if (jsonResponse.contains("\"success\": false") || jsonResponse.contains("\"success\":false")) {
                 String errorMsg = extractErrorMessage(jsonResponse);
                 log.error("Transcription error: {}", errorMsg);
                 throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, new Exception(errorMsg));
@@ -120,6 +120,7 @@ public class AudioUploadService {
             pb.redirectErrorStream(true);
             Map<String, String> env = pb.environment();
             String apiKey = System.getenv("GROQ_API_KEY");
+            log.info("GROQ_API_KEY from env: {}", apiKey != null ? "SET" : "NULL");
             if (apiKey != null && !apiKey.isEmpty()) {
                 env.put("GROQ_API_KEY", apiKey);
             }
@@ -127,7 +128,7 @@ public class AudioUploadService {
 
             String output = new BufferedReader(new InputStreamReader(process.getInputStream()))
                     .lines()
-                    .collect(Collectors.joining());
+                    .collect(Collectors.joining("\n"));
 
             int exitCode = process.waitFor();
             
@@ -140,14 +141,15 @@ public class AudioUploadService {
                         new Exception("Exit code: " + exitCode + ", Output: " + output));
             }
 
-            if (output.contains("\"error\"")) {
-                log.error("Transcription returned error: {}", output);
+            String lastLine = output.lines().reduce((first, second) -> second).orElse(output);
+            if (lastLine.contains("\"success\": false") || lastLine.contains("\"success\":false")) {
+                log.error("Transcription returned error: {}", lastLine);
                 throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED, 
-                        new Exception("Groq transcription error: " + output));
+                        new Exception("Groq transcription error: " + lastLine));
             }
 
             log.debug("Transcription completed successfully");
-            return output;
+            return lastLine;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.error("Transcription interrupted: {}", e.getMessage());

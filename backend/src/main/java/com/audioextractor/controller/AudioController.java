@@ -1,6 +1,6 @@
 package com.audioextractor.controller;
 
-import com.audioextractor.service.AudioUploadService;
+import com.audioextractor.service.GroqService;
 import com.audioextractor.service.RateLimiterService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -17,11 +17,11 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class AudioController {
 
-    private final AudioUploadService audioUploadService;
+    private final GroqService groqService;
     private final RateLimiterService rateLimiterService;
 
-    public AudioController(AudioUploadService audioUploadService, RateLimiterService rateLimiterService) {
-        this.audioUploadService = audioUploadService;
+    public AudioController(GroqService groqService, RateLimiterService rateLimiterService) {
+        this.groqService = groqService;
         this.rateLimiterService = rateLimiterService;
     }
 
@@ -29,10 +29,10 @@ public class AudioController {
     public ResponseEntity<Map<String, Object>> uploadAudio(
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
-        
+
         String clientId = getClientId(request);
         RateLimiterService.RateLimitResult rateLimit = rateLimiterService.checkRateLimit(clientId);
-        
+
         if (!rateLimit.allowed()) {
             Map<String, Object> error = new HashMap<>();
             error.put("success", false);
@@ -42,10 +42,12 @@ public class AudioController {
                     .header("X-RateLimit-Reset", String.valueOf(rateLimit.resetInSeconds()))
                     .body(error);
         }
-        
-        AudioUploadService.UploadResult result = audioUploadService.uploadAndTranscribe(file);
 
-        List<Map<String, Object>> actionItems = result.actionItems().stream()
+        GroqService.TranscriptionResult transcription = groqService.transcribe(file);
+        List<GroqService.ActionItem> actionItems = groqService.extractActionItems(transcription.text());
+        GroqService.SummaryResult summary = groqService.generateSummary(transcription.text(), actionItems.size(), transcription.duration());
+
+        List<Map<String, Object>> actionItemMaps = actionItems.stream()
                 .map(ai -> {
                     Map<String, Object> item = new HashMap<>();
                     item.put("task", ai.task());
@@ -62,17 +64,13 @@ public class AudioController {
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("message", "File processed successfully");
-        response.put("filename", result.filename());
-        response.put("originalName", result.originalName());
-        response.put("size", result.size());
-        response.put("transcript", result.transcript());
-        response.put("language", result.language());
-        response.put("action_items", actionItems);
-        response.put("summary", Map.of(
-                "text", result.summary().summary(),
-                "action_items_count", result.summary().actionItemsCount(),
-                "duration_estimate", result.summary().durationEstimate()
+        response.put("data", Map.of(
+                "raw_transcript", transcription.text(),
+                "language", transcription.language(),
+                "tasks", actionItemMaps,
+                "summary", summary.summary(),
+                "action_items_count", summary.actionItemsCount(),
+                "duration", summary.durationEstimate()
         ));
 
         return ResponseEntity.ok()
@@ -80,7 +78,7 @@ public class AudioController {
                 .header("X-RateLimit-Reset", String.valueOf(rateLimit.resetInSeconds()))
                 .body(response);
     }
-    
+
     private String getClientId(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isEmpty()) {
