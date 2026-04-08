@@ -87,6 +87,8 @@ const LandingPage = () => {
         .footer-inner { flex-direction: column !important; gap: 12px !important; text-align: center !important; }
         .hero-buttons { flex-direction: column !important; align-items: center !important; }
         .hero-buttons button { width: 100% !important; max-width: 300px !important; }
+        .team-outer-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+        .tech-stack-grid { grid-template-columns: 1fr 1fr !important; }
       }
     `;
     document.head.appendChild(style);
@@ -343,7 +345,7 @@ const LandingPage = () => {
       </h2>
     </div>
 
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'start' }}>
+    <div className="team-outer-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'start' }}>
       <div className="scroll-reveal team-grid">
         <div className="photo-card" style={{ height: 'clamp(300px, 38vw, 460px)', borderRadius: '16px', marginBottom: '32px' }}>
           <img src="/photo2.jpg" alt="Team working" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
@@ -394,7 +396,7 @@ const LandingPage = () => {
             }}>Zero cost.</h2>
           </div>
 
-          <div className="scroll-reveal tech-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', border: '1px solid #e5e5e5', borderRadius: '16px', overflow: 'hidden' }}>
+          <div className="tech-stack-grid scroll-reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', border: '1px solid #e5e5e5', borderRadius: '16px', overflow: 'hidden' }}>
             {[
               { name: 'Spring Boot 3.2', role: 'Backend framework', tag: 'Java' },
               { name: 'React 18', role: 'Frontend UI', tag: 'JavaScript' },
