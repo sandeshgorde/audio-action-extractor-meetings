@@ -79,6 +79,8 @@ const LandingPage = () => {
         .photos-grid { grid-template-columns: 1fr !important; }
         .tech-stack-grid { grid-template-columns: 1fr 1fr !important; }
         .stats-grid { grid-template-columns: 1fr 1fr !important; }
+        .team-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+        .team-description { font-size: 15px !important; line-height: 1.7 !important; word-break: normal !important; }
         .tech-grid { gap: 8px !important; }
         .nav-links { display: none !important; }
         .mobile-menu-btn { display: flex !important; }
@@ -346,7 +348,7 @@ const LandingPage = () => {
         <div className="photo-card" style={{ height: 'clamp(300px, 38vw, 460px)', borderRadius: '16px', marginBottom: '32px' }}>
           <img src="/photo2.jpg" alt="Team working" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
         </div>
-        <p style={{ fontSize: '15px', color: '#666', lineHeight: '1.8', fontWeight: '400', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+        <p className="team-description" style={{ fontSize: '15px', color: '#666', lineHeight: '1.8', fontWeight: '400', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
           A full-stack AI application built with Java, Python, and React. 
           From architecture to deployment, every layer was designed and coded by our team.
         </p>
