@@ -78,6 +78,7 @@ const LandingPage = () => {
         .features-grid { grid-template-columns: 1fr !important; }
         .photos-grid { grid-template-columns: 1fr !important; }
         .tech-stack-grid { grid-template-columns: 1fr 1fr !important; }
+        .stats-grid { grid-template-columns: 1fr 1fr !important; }
         .tech-grid { gap: 8px !important; }
         .nav-links { display: none !important; }
         .mobile-menu-btn { display: flex !important; }
@@ -341,18 +342,18 @@ const LandingPage = () => {
     </div>
 
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'start' }}>
-      <div className="scroll-reveal">
+      <div className="scroll-reveal team-grid">
         <div className="photo-card" style={{ height: 'clamp(300px, 38vw, 460px)', borderRadius: '16px', marginBottom: '32px' }}>
           <img src="/photo2.jpg" alt="Team working" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
         </div>
-        <p style={{ fontSize: '15px', color: '#666', lineHeight: '1.8', fontWeight: '400' }}>
+        <p style={{ fontSize: '15px', color: '#666', lineHeight: '1.8', fontWeight: '400', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
           A full-stack AI application built with Java, Python, and React. 
           From architecture to deployment, every layer was designed and coded by our team.
         </p>
       </div>
 
       <div className="scroll-reveal" style={{ paddingTop: '12px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: '1px solid #e5e5e5', borderRadius: '16px', overflow: 'hidden' }}>
+        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: '1px solid #e5e5e5', borderRadius: '16px', overflow: 'hidden' }}>
           <div style={{ padding: '28px 24px', background: '#fff', borderRight: '1px solid #e5e5e5', borderBottom: '1px solid #e5e5e5' }}>
             <div style={{ fontSize: '36px', fontWeight: '700', color: '#000', letterSpacing: '-0.03em', lineHeight: '1' }}>5</div>
             <div style={{ fontSize: '13px', fontWeight: '600', color: '#000', marginTop: '8px' }}>Team members</div>
