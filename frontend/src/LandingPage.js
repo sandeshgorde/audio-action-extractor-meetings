@@ -77,6 +77,7 @@ const LandingPage = () => {
         .steps-grid { grid-template-columns: 1fr !important; }
         .features-grid { grid-template-columns: 1fr !important; }
         .photos-grid { grid-template-columns: 1fr !important; }
+        .tech-stack-grid { grid-template-columns: 1fr 1fr !important; }
         .tech-grid { gap: 8px !important; }
         .nav-links { display: none !important; }
         .mobile-menu-btn { display: flex !important; }
@@ -390,7 +391,7 @@ const LandingPage = () => {
             }}>Zero cost.</h2>
           </div>
 
-          <div className="scroll-reveal" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', border: '1px solid #e5e5e5', borderRadius: '16px', overflow: 'hidden' }}>
+          <div className="scroll-reveal tech-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', border: '1px solid #e5e5e5', borderRadius: '16px', overflow: 'hidden' }}>
             {[
               { name: 'Spring Boot 3.2', role: 'Backend framework', tag: 'Java' },
               { name: 'React 18', role: 'Frontend UI', tag: 'JavaScript' },
