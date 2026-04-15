@@ -99,6 +99,12 @@ public class GroqService {
             }
 
             log.info("Transcription complete: {} chars", text.length());
+            
+            if (text.length() < 10 || text.replaceAll("[^a-zA-Z]", "").length() < 5) {
+                throw new AudioProcessingException(ErrorCode.TRANSCRIPTION_FAILED,
+                    new Exception("Audio too short or unclear - could not transcribe"));
+            }
+            
             return new TranscriptionResult(text, duration, "en");
 
         } catch (RestClientException e) {
