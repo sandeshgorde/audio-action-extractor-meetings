@@ -315,5 +315,4 @@ audio-action-extractor-meetings/
 
 ## License
 
-MIT · Built as MCA Sem II group project · Sant Gadge Baba Amravati University  
-Guided by Prof. Sonal Shirbhate
+MIT
